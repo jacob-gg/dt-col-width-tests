@@ -1,0 +1,84 @@
+---
+title: "Testing Stability of DT Column Widths"
+author: "jgg"
+date: "11/21/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+_Testing fixes for the Equity Center Cville Data Collection broken DataTable column widths in Firefox and Chrome._
+
+In this test, I've specified the following CSS. The `DT::datatable()` call is unchanged.
+```{css, eval = F, echo = T}
+<style>
+table {
+    table-layout:fixed;
+}
+td{
+    overflow:hidden;
+    text-overflow: ellipsis;
+}
+</style>
+```
+
+<style>
+table {
+    table-layout:fixed;
+}
+td{
+    overflow:hidden;
+    text-overflow: ellipsis;
+}
+</style>
+
+```{r echo = F, message = F, warning = F}
+library(tidyverse)
+library(leaflet)
+library(googlesheets4)
+library(googledrive)
+library(DT)
+library(sf)
+library(lubridate)
+library(RColorBrewer)
+library(viridis)
+library(tigris)
+# download process image
+drive_deauth()
+drive_download("https://docs.google.com/drawings/d/1H1ALiYYQY7WObLpUeoRZXBufvYam6E24j81T2fS4Psc/edit?usp=sharing", path = "images/Data Process.png", type = "png", overwrite = TRUE)
+# read google sheet
+table <- read_sheet("https://docs.google.com/spreadsheets/d/1vfuiVf_aQikUNd7OW7TdUOHttp4ziSWnOO108CbXn0I/edit?usp=sharing", gs4_deauth())
+img_uri <- function(x) { sprintf('<img src="%s"/ height="50">', knitr::image_uri(x)) }
+c <- img_uri("icons/climate.png")
+t <- img_uri("icons/transportation.png")
+r <- img_uri("icons/risk.png")
+i <- img_uri("icons/infrastructure.png")
+e <- img_uri("icons/economic.png")
+library(stringi)
+for (z in 1:nrow(table)) {
+  topic_vec <- unlist(stri_split(table[z, 'Topics'], regex = ', ')) # split up topics for data source
+  icon_vec <- sapply(topic_vec, function(x) case_when(x == "Climate measures" ~ c,
+                                                      x == "Transportation" ~ t,
+                                                      x == "Risk factors" ~ r,
+                                                      x == "Community assets & infrastructure" ~ i,
+                                                      x == "Social & economic characteristics" ~ e) # identify corresponding icons
+  )
+  icon_vec <- paste0(icon_vec, collapse = ', ') # paste the icon sources together
+  table[z, 'Icon'] <- icon_vec # add icons to table
+  table <- table %>% select(Icon, Topics, everything()) # reorder `Icon` to be 1st column
+}
+```
+
+```{r message = F, warning = F}
+datatable(table,
+          filter = 'top', rownames = F, options = list(
+            columnDefs = list(list(targets = c(1,2,3,6), width = '200px'),
+                              list(targets = c(0,4,5,7), width = '150px')),
+            autoWidth = T,
+            scrollX = T,
+            autoWidth = T,
+            pageLength = 5),
+          escape = F)
+```
